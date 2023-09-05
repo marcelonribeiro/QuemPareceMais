@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow,
                              QWidget, QLabel, QPushButton, QDockWidget, QDialog,
                              QFileDialog, QMessageBox, QToolBar, QStatusBar,
-                             QVBoxLayout)
+                             QVBoxLayout, QGridLayout)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import (QIcon, QAction, QPixmap)
 
@@ -15,83 +15,63 @@ class MainWindow(QMainWindow):
 
     def initializeUI(self):
         """Set up the application's GUI."""
-        self.setFixedSize(650, 650)
+        self.setMinimumSize(650, 200)
         self.setWindowTitle("Quem Parece Mais?")
 
         self.setUpMainWindow()
-        self.createActions()
-        # self.createToolBar()
         self.show()
+
+    def createButtonWithIcon(self, image_icon_path, tooltip):
+        botao = QPushButton(self)
+        icon = QIcon(image_icon_path)
+        botao.setIcon(icon)
+        botao.setIconSize(icon.actualSize(botao.size()))
+        botao.setToolTip(tooltip)
+        botao.setGeometry(50, 50, 100, 100)
+        return botao
 
     def setUpMainWindow(self):
         """Create and arrange widgets in the main window."""
 
-        self.botao_abrir = QPushButton("Abrir Imagem", self)
-        self.botao_abrir.clicked.connect(self.openImage)
-
-        self.image = QPixmap()
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
         self.image_label = QLabel()
+        self.image_label.setFixedSize(200, 200)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.botao_abrir)
-        self.layout.addWidget(self.image_label)
-        self.setLayout(self.layout)
+        self.botao_abrir = self.createButtonWithIcon('images/open_file.png',
+                                                     'Clique neste botão para escolher uma imagem')
+        self.botao_abrir.clicked.connect(lambda: self.openImage(self.image_label))
 
-        # Create the status bar
-        self.setStatusBar(QStatusBar())
+        self.botao_limpar = self.createButtonWithIcon('images/clear.png',
+                                                      'Clique neste botão para limpar a imagem')
+        self.botao_limpar.clicked.connect(lambda: self.clearImage(self.image_label))
 
-    def createActions(self):
-        """Create the application's menu actions."""
-        # Create actions for File menu
-        self.open_act = QAction(QIcon("images/open_file.png"), "Open")
-        self.open_act.setStatusTip("Open a new image")
-        self.open_act.triggered.connect(self.openImage)
+        layout = QGridLayout()
+        layout.addWidget(self.image_label, 0, 0, 1, 2)
+        layout.addWidget(self.botao_abrir, 1, 0)
+        layout.addWidget(self.botao_limpar, 1, 1)
+        central_widget.setLayout(layout)
 
-        self.quit_act = QAction(QIcon("images/exit.png"), "Quit")
-        self.quit_act.setShortcut("Ctrl+Q")
-        self.quit_act.setStatusTip("Quit program")
-        self.quit_act.triggered.connect(self.close)
-
-        self.clear_act = QAction(QIcon("images/clear.png"), "Clear Image")
-        self.clear_act.setStatusTip("Clear the current image")
-        self.clear_act.triggered.connect(self.clearImage)
-
-    def createToolBar(self):
-        """Create the application's toolbar."""
-        tool_bar = QToolBar("Photo Editor Toolbar")
-        tool_bar.setIconSize(QSize(24, 24))
-        self.addToolBar(tool_bar)
-
-        # Add actions to the toolbar
-        tool_bar.addAction(self.open_act)
-        tool_bar.addAction(self.clear_act)
-        tool_bar.addSeparator()
-        tool_bar.addAction(self.quit_act)
-
-    def openImage(self):
+    def openImage(self, i_label):
         """Open an image file and display its contents on the
         QLabel widget."""
-        image_file, _ = QFileDialog.getOpenFileName(
-            self, "Open Image", "",
-            "JPG Files (*.jpeg *.jpg );;PNG Files (*.png);;\
-                Bitmap Files (*.bmp);;GIF Files (*.gif)")
+        image_file, _ = QFileDialog.getOpenFileName(self, "Open Image", "",
+                                                    "JPG Files (*.jpeg *.jpg );;PNG Files (*.png);;"
+                                                    "Bitmap Files (*.bmp);;GIF Files (*.gif)")
+        image = QPixmap(image_file)
 
-        if image_file:
-            self.image = QPixmap(image_file)
-
-            self.image_label.setPixmap(self.image.scaled(self.image_label.size(),
-                                                         Qt.AspectRatioMode.KeepAspectRatio,
-                                                         Qt.TransformationMode.SmoothTransformation))
+        if not image.isNull():
+            i_label.setPixmap(image.scaled(self.image_label.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                                    Qt.TransformationMode.SmoothTransformation))
+            i_label.update()
         else:
-            QMessageBox.information(self, "No Image",
-                                    "No Image Selected.", QMessageBox.StandardButton.Ok)
+            QMessageBox.information(self, "No Image", "No Image Selected.", QMessageBox.StandardButton.Ok)
 
-    def clearImage(self):
+    def clearImage(self, i_label):
         """Clears current image in the QLabel widget."""
-        self.image_label.clear()
-        self.image = QPixmap()  # Reset pixmap so that isNull() = True
+        i_label.clear()
 
 
 if __name__ == '__main__':
