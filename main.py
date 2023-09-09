@@ -76,3 +76,46 @@ if __name__ == '__main__':
         Qt.ApplicationAttribute.AA_DontShowIconsInMenus, True)
     window = MainWindow()
     sys.exit(app.exec())
+
+# https://github.com/davidsandberg/facenet/wiki
+
+# import tensorflow as tf
+# import cv2
+# import numpy as np
+#
+# # Carregue o modelo FaceNet pré-treinado
+# model_path = 'caminho/para/o/modelo/FaceNet'
+# model = tf.keras.models.load_model(model_path)
+#
+# # Função para pré-processamento de imagens
+# def preprocess_image(image_path):
+#     img = cv2.imread(image_path)
+#     img = cv2.resize(img, (160, 160))
+#     img = img.astype(np.float32)
+#     img = (img - 127.5) / 128.0  # Normalização
+#     return img
+#
+# # Função para gerar embeddings faciais
+# def get_face_embeddings(image_path):
+#     img = preprocess_image(image_path)
+#     img = np.expand_dims(img, axis=0)  # Adicionar dimensão de lote
+#     embeddings = model.predict(img)
+#     return embeddings
+#
+# # Exemplo de uso
+# image_path_1 = 'caminho/para/primeira/imagem.jpg'
+# image_path_2 = 'caminho/para/segunda/imagem.jpg'
+#
+# embeddings_1 = get_face_embeddings(image_path_1)
+# embeddings_2 = get_face_embeddings(image_path_2)
+#
+# # Calcule a distância euclidiana entre os embeddings para comparar as faces
+# distance = np.linalg.norm(embeddings_1 - embeddings_2)
+#
+# # Defina um limite para determinar se as faces são da mesma pessoa
+# limite = 1.0  # Ajuste conforme necessário
+#
+# if distance < limite:
+#     print("As faces pertencem à mesma pessoa.")
+# else:
+#     print("As faces pertencem a pessoas diferentes.")
