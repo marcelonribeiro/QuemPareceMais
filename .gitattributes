@@ -1,14 +1,1 @@
-*.md filter=lfs diff=lfs merge=lfs -text
-*.jpg filter=lfs diff=lfs merge=lfs -text
-*.png filter=lfs diff=lfs merge=lfs -text
-*.py filter=lfs diff=lfs merge=lfs -text
-*.pb filter=lfs diff=lfs merge=lfs -text
-*.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
-*.index filter=lfs diff=lfs merge=lfs -text
-*.meta filter=lfs diff=lfs merge=lfs -text
-main.py !text !filter !merge !diff
-README.md !text !filter !merge !diff
-*.py !text !filter !merge !diff
-*.jpg !text !filter !merge !diff
-*.png !text !filter !merge !diff
-*.md !text !filter !merge !diff
+model/20180402-114759.zip filter=lfs diff=lfs merge=lfs -text
