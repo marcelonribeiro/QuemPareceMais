@@ -3,6 +3,9 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel, QPushBu
                              QGridLayout)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (QIcon, QPixmap)
+import cv2
+import numpy as np
+import tensorflow as tf
 
 
 class MainWindow(QMainWindow):
@@ -70,55 +73,35 @@ class MainWindow(QMainWindow):
         i_label.clear()
 
 
+def preprocess_image(image_path):
+    img = cv2.imread(image_path)
+    img = cv2.resize(img, (160, 160))
+    img = img.astype(np.float32)
+    img = (img - 127.5) / 128.0  # Normalização)
+    return np.expand_dims(img, axis=0)
+
+
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    app.setAttribute(
-        Qt.ApplicationAttribute.AA_DontShowIconsInMenus, True)
-    window = MainWindow()
-    sys.exit(app.exec())
+    # app = QApplication(sys.argv)
+    # app.setAttribute(
+    #     Qt.ApplicationAttribute.AA_DontShowIconsInMenus, True)
+    # window = MainWindow()
+    # sys.exit(app.exec())
 
+    tf.compat.v1.disable_v2_behavior()
 
+    with tf.compat.v1.gfile.FastGFile("model/20180402-114759.pb", 'rb') as f:
+        graph_def = tf.compat.v1.GraphDef()
+        graph_def.ParseFromString(f.read())
+        tf.import_graph_def(graph_def, name='')
 
+    with tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph()) as sess:
+        images_placeholder = sess.graph.get_tensor_by_name("input:0")
+        embeddings = sess.graph.get_tensor_by_name("embeddings:0")
+        phase_train_placeholder = sess.graph.get_tensor_by_name("phase_train:0")
+        resultado = sess.run(embeddings, feed_dict={images_placeholder: preprocess_image("images/allyne.jpg"),
+                                                    phase_train_placeholder: False})
+        print("Embeddings: ", resultado)
 
-# https://github.com/davidsandberg/facenet/wiki
-
-# import tensorflow as tf
-# import cv2
-# import numpy as np
-#
-# # Carregue o modelo FaceNet pré-treinado
-# model_path = 'caminho/para/o/modelo/FaceNet'
-# model = tf.keras.models.load_model(model_path)
-#
-# # Função para pré-processamento de imagens
-# def preprocess_image(image_path):
-#     img = cv2.imread(image_path)
-#     img = cv2.resize(img, (160, 160))
-#     img = img.astype(np.float32)
-#     img = (img - 127.5) / 128.0  # Normalização
-#     return img
-#
-# # Função para gerar embeddings faciais
-# def get_face_embeddings(image_path):
-#     img = preprocess_image(image_path)
-#     img = np.expand_dims(img, axis=0)  # Adicionar dimensão de lote
-#     embeddings = model.predict(img)
-#     return embeddings
-#
-# # Exemplo de uso
-# image_path_1 = 'caminho/para/primeira/imagem.jpg'
-# image_path_2 = 'caminho/para/segunda/imagem.jpg'
-#
-# embeddings_1 = get_face_embeddings(image_path_1)
-# embeddings_2 = get_face_embeddings(image_path_2)
-#
 # # Calcule a distância euclidiana entre os embeddings para comparar as faces
 # distance = np.linalg.norm(embeddings_1 - embeddings_2)
-#
-# # Defina um limite para determinar se as faces são da mesma pessoa
-# limite = 1.0  # Ajuste conforme necessário
-#
-# if distance < limite:
-#     print("As faces pertencem à mesma pessoa.")
-# else:
-#     print("As faces pertencem a pessoas diferentes.")
