@@ -26,3 +26,5 @@ Foi compilado um executável do programa para Windows usando o comando:
 pyinstaller --onefile --noconsole --add-binary "images/clear.png;./images" --add-binary "images/open_file.png;./images" --add-binary "model/20180402-114759.pb;./model" --add-binary "images/bebe.png;./images" main.py
 </pre>
 Ele está disponível como release no repositório.
+
+![Tela inicial](https://i.imgur.com/5F4Kndt.png)
