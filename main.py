@@ -6,12 +6,23 @@ from PyQt6.QtGui import (QIcon, QPixmap, QAction)
 import cv2
 import numpy as np
 import tensorflow as tf
+import os
+
+
+def get_application_path():
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        return sys._MEIPASS
+    else:
+        return os.path.dirname(os.path.abspath(__file__))
+
+
+app_dir = get_application_path()
 
 
 def get_grafo_modelo_gerador_embeddings():
     tf.compat.v1.disable_v2_behavior()
 
-    with tf.compat.v1.gfile.FastGFile("model/20180402-114759.pb", 'rb') as f:
+    with tf.compat.v1.gfile.FastGFile(os.path.join(app_dir, "model/20180402-114759.pb"), 'rb') as f:
         graph_def = tf.compat.v1.GraphDef()
         graph_def.ParseFromString(f.read())
         tf.import_graph_def(graph_def, name='')
@@ -25,6 +36,7 @@ PESSOA_2 = 4
 GRAPH = get_grafo_modelo_gerador_embeddings()
 
 
+# classe que roda a thread para usar a rede neural pré-treinada, criar embeddings e comparar as imagens
 class Worker(QThread):
     update_text_edit_signal = pyqtSignal(str)
 
@@ -32,12 +44,30 @@ class Worker(QThread):
         super().__init__()
         self.dict_pessoa_to_image_label_and_path = dict_pessoa_to_image_label_and_path
 
+    @staticmethod
+    def preprocess_image(image_path):
+        img = cv2.imread(image_path)
+        img = cv2.resize(img, (160, 160))
+        img = img.astype(np.float32)
+        img = (img - 127.5) / 128.0  # Normalização)
+        return np.expand_dims(img, axis=0)
+
+    @staticmethod
+    def get_embedding_by_graph_and_img_path(graph, img_path):
+        with tf.compat.v1.Session(graph=graph) as sess:
+            images_placeholder = sess.graph.get_tensor_by_name("input:0")
+            embeddings = sess.graph.get_tensor_by_name("embeddings:0")
+            phase_train_placeholder = sess.graph.get_tensor_by_name("phase_train:0")
+            resultado = sess.run(embeddings, feed_dict={images_placeholder: Worker.preprocess_image(img_path),
+                                                        phase_train_placeholder: False})
+        return resultado
+
     def get_embeddings_images(self):
         if any(p.image_path == '' for p in self.dict_pessoa_to_image_label_and_path.values()):
             raise Exception('Alguma imagem não foi apontada.')
         embeddings = {}
         for pessoa in self.dict_pessoa_to_image_label_and_path:
-            emb = get_embedding_by_graph_and_img_path(GRAPH,
+            emb = Worker.get_embedding_by_graph_and_img_path(GRAPH,
                                                       self.dict_pessoa_to_image_label_and_path[pessoa].image_path)
             embeddings[pessoa] = emb
         return embeddings
@@ -74,7 +104,7 @@ class SobreDialog(QDialog):
         self.setModal(True)
 
         self.setWindowTitle("Sobre o Programa")
-        self.setGeometry(100, 100, 400, 300)
+        self.setGeometry(200, 200, 800, 400)
 
         layout = QVBoxLayout()
         text_browser = QTextBrowser()
@@ -85,7 +115,25 @@ class SobreDialog(QDialog):
         <h2>Quem Parece Mais?</h2>
         <p>Versão: 1.0</p>
         <p>Autor: Marcelo Nunes Ribeiro</p>
-        <p>Descrição: Este é um programa para saber quem, de duas pessoas, parece mais com a Pessoa Alvo.</p>
+        <p>Website: <a href="https://github.com/marcelonribeiro/QuemPareceMais">github.com/marcelonribeiro/QuemPareceMais</a></p>
+        <p>Descrição: Este programa permite comparar rostos de duas pessoas com uma pessoa alvo. Tem uma interface gráfica implementada 
+em Qt 6 e usa a rede neural pré-treinada disponível no repositório <a href="https://github.com/davidsandberg/facenet">FaceNet</a>, 
+onde está a implementação original do método proposto no artigo: <a href="http://arxiv.org/abs/1503.03832">"FaceNet: A Unified Embedding for Face Recognition and Clustering"</a>.
+O modelo foi treinado usado o conjunto de dados <a href="https://www.robots.ox.ac.uk/~vgg/data/vgg_face2/">VGGFace2</a> e a 
+arquitetura de rede usada foi a Inception ResNet v1, que é uma rede neural convolucional com várias camadas e 
+milhares de neurônios.</p>
+
+<p>A ideia
+do treinamento é usar redes neurais siamesas, onde um par de redes neurais compartilham os mesmos pesos, mas cada uma 
+recebe uma imagem distinta. Uma função chamada triplet loss é usada para que a aprendizagem consiga 
+ajustar uma rede que gere os chamados embeddings das imagens (vetores com 512 características) que fiquem mais 
+distantes se são pessoas diferentes e mais próximas se são a mesma pessoa em um mesmo espaço de características.</p>
+
+<p>O programa aqui implementado serve para calcular a distância dos pares de embeddings que representam cada foto e 
+retorna qual pessoa tem a menor distância entre ela e a pessoa alvo. Esta é uma função que foi aprendida 
+para a tarefa de reconhecimento facial, ou seja, se a pessoa é ou não é aquela com quem ela está sendo comparada e não
+para aprender semelhanças entre pessoas. Por isso não é garantido que o programa vai de fato acertar, mas é divertido
+ver o que a rede neural vai nos dizer.</p>
         """
 
         text_browser.setHtml(about_text)
@@ -97,6 +145,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.setWindowIcon(QIcon(os.path.join(app_dir, 'images/bebe.png')))
         self.dict_pessoa_to_image_label_and_path = {}
         self.initializeUI()
 
@@ -140,12 +189,12 @@ class MainWindow(QMainWindow):
 
     def createImageLabelAndButtonsLinkedWithActions(self, img_label_and_path):
 
-        botao_abrir = self.createButtonWithIcon('images/open_file.png',
-                                                     'Clique neste botão para escolher uma imagem')
+        botao_abrir = self.createButtonWithIcon(os.path.join(app_dir,'images/open_file.png'),
+                                                'Clique neste botão para escolher uma imagem')
         botao_abrir.clicked.connect(lambda: self.openImage(img_label_and_path))
 
-        botao_limpar = self.createButtonWithIcon('images/clear.png',
-                                                      'Clique neste botão para limpar a imagem')
+        botao_limpar = self.createButtonWithIcon(os.path.join(app_dir,'images/clear.png'),
+                                                 'Clique neste botão para limpar a imagem')
         botao_limpar.clicked.connect(lambda: self.clearImage(img_label_and_path))
         return img_label_and_path.image_label, botao_abrir, botao_limpar
 
@@ -211,7 +260,7 @@ class MainWindow(QMainWindow):
         self.text_edit_resultado.append(texto)
 
     def openImage(self, img_label_and_path):
-        image_file, _ = QFileDialog.getOpenFileName(self, "Open Image", "",
+        image_file, _ = QFileDialog.getOpenFileName(self, "Abra a foto", "",
                                                     "JPG Files (*.jpeg *.jpg );;PNG Files (*.png);;"
                                                     "Bitmap Files (*.bmp);;GIF Files (*.gif)")
         image = QPixmap(image_file)
@@ -223,7 +272,7 @@ class MainWindow(QMainWindow):
             img_label_and_path.image_label.update()
             img_label_and_path.image_path = image_file
         else:
-            QMessageBox.information(self, "No Image", "No Image Selected.", QMessageBox.StandardButton.Ok)
+            QMessageBox.information(self, "Sem foto", "Nenhuma foto foi selecionada.", QMessageBox.StandardButton.Ok)
 
     def clearImage(self, img_label_and_path):
         img_label_and_path.image_label.clear()
@@ -232,24 +281,6 @@ class MainWindow(QMainWindow):
     def mostrar_sobre_dialog(self):
         sobre_dialog = SobreDialog()
         sobre_dialog.exec()
-
-
-def preprocess_image(image_path):
-    img = cv2.imread(image_path)
-    img = cv2.resize(img, (160, 160))
-    img = img.astype(np.float32)
-    img = (img - 127.5) / 128.0  # Normalização)
-    return np.expand_dims(img, axis=0)
-
-
-def get_embedding_by_graph_and_img_path(graph, img_path):
-    with tf.compat.v1.Session(graph=graph) as sess:
-        images_placeholder = sess.graph.get_tensor_by_name("input:0")
-        embeddings = sess.graph.get_tensor_by_name("embeddings:0")
-        phase_train_placeholder = sess.graph.get_tensor_by_name("phase_train:0")
-        resultado = sess.run(embeddings, feed_dict={images_placeholder: preprocess_image(img_path),
-                                                    phase_train_placeholder: False})
-    return resultado
 
 
 if __name__ == '__main__':
