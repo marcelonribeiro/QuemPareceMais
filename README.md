@@ -21,7 +21,7 @@ ver o que a rede neural vai nos dizer.
 
 ## Binário
 
-Foi compilado um executável do programa usando o comando:
+Foi compilado um executável do programa para Windows usando o comando:
 <pre>
 pyinstaller --onefile --noconsole --add-binary "images/clear.png;./images" --add-binary "images/open_file.png;./images" --add-binary "model/20180402-114759.pb;./model" --add-binary "images/bebe.png;./images" main.py
 </pre>
